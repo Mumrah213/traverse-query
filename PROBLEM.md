@@ -107,9 +107,14 @@ Judgement calls worth knowing:
    exclusion machinery exists ("like X but not X") — worth a setting.
 3. **The embed backend at query time.** Semantic fallback needs
    sentence-transformers + torch at runtime (not at build time, where the
-   matrix is precomputed). That is a heavy runtime dependency for a
-   stdlib-server prototype; the sibling's container already solves it —
-   this repo should inherit the image rather than reinvent it.
+   matrix is precomputed). The sibling loads both lazily, so the *first
+   user query* used to pay ~20s of torch import + model load, plus ~5s
+   for the tag-vocabulary matrix `tags.py` builds on first search. This
+   repo absorbs both at boot: `_warm_up()` runs the public `embed()` and
+   one warm `router.search()` at startup, with a log line per step (~35s
+   boot, every query fast afterwards). The heavier question -- should the
+   runtime model be a service instead of a per-process import -- belongs
+   to the sibling's deployment, not this repo.
 4. **Where results belong in the UI.** Currently results render below the
    node and clicking a title jumps back into browse. Reasonable, but the
    anchor bar persisting across hops (by design) wants a clearer visual

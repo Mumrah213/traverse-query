@@ -42,6 +42,35 @@ def _build_router(directory: Path) -> Any:
     return build_router(directory=directory)
 
 
+def _warm_up(router: Any) -> None:
+    """Load everything the router defers to request time, at boot.
+
+    Two one-time costs otherwise land on the *first user query*: the runtime
+    embed model (torch + sentence-transformers, ~15s) and the tag-vocabulary
+    embedding matrix (tags.py builds it lazily on the first search, ~5s).
+    Both are the sibling's design and this repo does not change them -- but
+    moving the cost to startup, with a log line for each step, is this
+    server's boot sequence to own. Non-fatal: on failure the app still
+    browses and set_ops/inversion still answer; semantic queries degrade.
+    """
+    print("[traverse-query] warming up embed model (torch + sentence-transformers)...")
+    try:
+        from query_to_rec.embed_client import embed
+
+        embed(["warm-up"])
+        print("[traverse-query] embed model ready")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[traverse-query] embed model unavailable ({type(exc).__name__}: {exc}); "
+              "semantic queries will fail, set_ops/inversion still work")
+
+    print("[traverse-query] warming tag vocabulary (first search pays otherwise)...")
+    try:
+        router.search("warm-up", k=1)
+        print("[traverse-query] tag vocabulary ready")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[traverse-query] tag vocabulary unavailable ({type(exc).__name__}: {exc})")
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "TraverseQuery/0.1"
 
@@ -164,6 +193,13 @@ class Handler(BaseHTTPRequestHandler):
 def serve(host: str = "127.0.0.1", port: int = 8500, data_dir: Path | None = None) -> None:
     global GRAPH, ROUTER, ROUTER_ERROR
 
+    # Boot takes ~35s on a cold start (catalog + embeddings + warm-up); the
+    # log lines explain each step, so they must not sit in the stdout buffer
+    # when stdout is a file (block-buffered by default when not a tty).
+    import sys as _sys
+
+    _sys.stdout.reconfigure(line_buffering=True)
+
     from .browse import DATA as DEFAULT_DATA
 
     d = data_dir or Path(DEFAULT_DATA)
@@ -182,5 +218,7 @@ def serve(host: str = "127.0.0.1", port: int = 8500, data_dir: Path | None = Non
         ROUTER_ERROR = f"{type(exc).__name__}: {exc}"
         print(f"[traverse-query] router unavailable ({ROUTER_ERROR}); browse only")
 
+    if ROUTER is not None:
+        _warm_up(ROUTER)
     print(f"[traverse-query] http://{host}:{port}  (Ctrl-C to stop)")
     ThreadingHTTPServer((host, port), Handler).serve_forever()

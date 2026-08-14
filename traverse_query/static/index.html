@@ -171,15 +171,47 @@
   .status { color: var(--dim); font-size: 13px; min-height: 20px; margin: 6px 0 12px; }
 
   /* anchored-query results */
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 44%);
+    gap: 20px;
+    align-items: start;
+  }
+  .left { min-width: 0; }
+  .right { position: sticky; top: 16px; min-width: 0; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .right { position: static; }
+  }
+
   .results {
     background: var(--panel); border: 1px solid var(--universe); border-radius: 12px;
-    padding: 14px 16px; margin-bottom: 22px;
+    padding: 14px 16px;
+  }
+  .results.flash { animation: flash .5s ease-out; }
+  @keyframes flash {
+    0% { box-shadow: 0 0 0 2px var(--accent); }
+    100% { box-shadow: 0 0 0 0 transparent; }
   }
   .results .rhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
                     margin-bottom: 4px; }
   .results .rhead h2 { margin: 0; font-size: 16px; }
   .results .rhead .rsynth { color: var(--dim); font-size: 12.5px; }
   .results .rhead .rsynth code { color: var(--theme); }
+  .results .rhead .rmech {
+    font-size: 10.5px; color: var(--anchor); text-transform: uppercase;
+    letter-spacing: .06em; border: 1px solid var(--universe); border-radius: 999px;
+    padding: 1px 8px; vertical-align: middle;
+  }
+  .rstate { display: flex; align-items: center; gap: 10px; color: var(--dim);
+            font-size: 13.5px; padding: 10px 0 4px; }
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .8s linear infinite; flex: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .elapsed { font-variant-numeric: tabular-nums; color: var(--dim); }
   .rgroup { margin-top: 12px; }
   .rgroup h3 { margin: 0 0 2px; font-size: 14px; color: var(--accent); }
   .rgroup .rexp { margin: 0 0 8px; color: var(--dim); font-size: 12.5px; }
@@ -227,9 +259,15 @@
   </div>
 
   <div class="status" id="status"></div>
-  <div class="trail" id="trail" hidden></div>
-  <div id="main"></div>
-  <div id="results" hidden></div>
+  <div class="layout">
+    <div class="left">
+      <div class="trail" id="trail" hidden></div>
+      <div id="main"></div>
+    </div>
+    <div class="right">
+      <div id="results" hidden></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -265,7 +303,9 @@ function hopToHash(h) {
 
 // --- anchor ----------------------------------------------------------------
 function setAnchor(movie, pushHopToo) {
+  const changed = !anchor || anchor.id !== movie.id;
   anchor = {id: movie.id, title: movie.title, year: movie.year, kind: movie.kind};
+  if (changed) $("results").hidden = true;  // old results are for the old anchor
   const bar = $("anchorbar");
   bar.hidden = false;
   $("antitle").textContent = movie.title;
@@ -287,30 +327,56 @@ async function runQuery(text) {
   if (!anchor) return;
   const go = $("aqgo"), status = $("status");
   go.disabled = true;
-  status.textContent = "querying " + anchor.title + "…";
+  status.textContent = "";
+
+  // The results panel goes straight into a visible querying state with a
+  // live elapsed counter, so a slow first query reads as "working" rather
+  // than "stuck".
+  const r = $("results");
+  r.hidden = false;
+  r.classList.remove("flash");
+  const t0 = performance.now();
+  r.innerHTML = `<div class="rhead">
+      <h2>Special query <span class="rmech">${esc("running…")}</span></h2>
+      <span class="rsynth">anchored on <b>${esc(anchor.title)}</b></span>
+    </div>
+    <div class="rstate">
+      <span class="spinner"></span>
+      <span>querying ${esc(anchor.title)}…</span>
+      <span class="elapsed" id="qelapsed">0.0s</span>
+    </div>`;
+  const tick = setInterval(() => {
+    const el = $("qelapsed");
+    if (el) el.textContent = ((performance.now() - t0) / 1000).toFixed(1) + "s";
+  }, 200);
+
   try {
     const d = await api("/api/query", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({query: text, anchor_id: anchor.id, k: 12}),
     });
-    status.textContent = "";
-    renderResults(d);
+    clearInterval(tick);
+    renderResults(d, (performance.now() - t0) / 1000);
   } catch (err) {
-    status.textContent = "Error: " + err.message;
+    clearInterval(tick);
+    r.innerHTML = `<div class="rstate">✕ query failed: ${esc(err.message)}</div>`;
+    status.textContent = "";
   } finally {
     go.disabled = false;
   }
 }
 
-function renderResults(d) {
+function renderResults(d, wall) {
   const r = $("results");
   r.hidden = false;
+  r.classList.remove("flash");
   const resp = d.response;
+  const elapsed = resp.elapsed_ms ? (resp.elapsed_ms / 1000).toFixed(1) + "s" : wall.toFixed(1) + "s";
   const parts = [];
   parts.push(`<div class="rhead">
-      <h2>${esc(d.synthesis)} · anchored on ${esc(d.anchor)}</h2>
-      <span class="rsynth">searched: <code>${esc(d.query)}</code></span>
+      <h2>Special query <span class="rmech">${esc(d.synthesis)}</span></h2>
+      <span class="rsynth">searched: <code>${esc(d.query)}</code> · ${elapsed}</span>
     </div>`);
 
   if (resp.reject) {
@@ -341,11 +407,14 @@ function renderResults(d) {
 
   parts.push(`<p class="rnote"><a style="color:var(--accent);cursor:pointer" id="rclose">✕ close results</a></p>`);
   r.innerHTML = parts.join("");
+  void r.offsetWidth;  // restart the flash animation
+  r.classList.add("flash");
   $("rclose").onclick = () => { r.hidden = true; };
-  // results are entry points back into browse: click a title to walk from it
+  // results stay open while browsing: clicking a title walks the LEFT
+  // column to that node, so you can inspect a recommendation and come back
+  // to the list without re-querying.
   r.querySelectorAll("li.member[data-id]").forEach(li =>
     li.onclick = () => {
-      r.hidden = true;
       pushHop({type: "node", id: +li.dataset.id},
         li.querySelector(".t").textContent.trim().replace(/\s+\(\d{4}\)$/, ""));
     });
