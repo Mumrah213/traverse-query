@@ -173,16 +173,23 @@
   /* anchored-query results */
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 44%);
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 40%);
     gap: 20px;
     align-items: start;
   }
   .left { min-width: 0; }
   .right { position: sticky; top: 16px; min-width: 0; }
-  @media (max-width: 900px) {
+  @media (max-width: 760px) {
     .layout { grid-template-columns: 1fr; }
     .right { position: static; }
   }
+
+  .placeholder {
+    border: 1px dashed var(--line); border-radius: 12px;
+    padding: 18px 16px; color: var(--dim); font-size: 13px;
+  }
+  .placeholder h2 { margin: 0 0 6px; font-size: 15px; color: var(--dim); }
+  .placeholder code { color: var(--theme); }
 
   .results {
     background: var(--panel); border: 1px solid var(--universe); border-radius: 12px;
@@ -265,7 +272,7 @@
       <div id="main"></div>
     </div>
     <div class="right">
-      <div id="results" hidden></div>
+      <div id="results"></div>
     </div>
   </div>
 </div>
@@ -302,10 +309,26 @@ function hopToHash(h) {
 }
 
 // --- anchor ----------------------------------------------------------------
+// The right column always shows a panel: a placeholder hint until the
+// first query, then the query state / results.
+const PLACEHOLDER_HTML = `<div class="placeholder">
+  <h2>Special query</h2>
+  <p class="hint">Browse to a movie you like, ⛓ <b>anchor</b> it, then run a
+  query against it — results appear here, side by side with the browse view.
+  Try <code>the opposite</code>, <code>more like this</code> or
+  <code>but from the 90s</code>.</p>
+</div>`;
+function showPlaceholder() {
+  const r = $("results");
+  r.hidden = false;
+  r.classList.remove("flash");
+  r.innerHTML = PLACEHOLDER_HTML;
+}
+
 function setAnchor(movie, pushHopToo) {
   const changed = !anchor || anchor.id !== movie.id;
   anchor = {id: movie.id, title: movie.title, year: movie.year, kind: movie.kind};
-  if (changed) $("results").hidden = true;  // old results are for the old anchor
+  if (changed) showPlaceholder();  // old results are for the old anchor
   const bar = $("anchorbar");
   bar.hidden = false;
   $("antitle").textContent = movie.title;
@@ -318,7 +341,7 @@ function setAnchor(movie, pushHopToo) {
 function clearAnchor() {
   anchor = null;
   $("anchorbar").hidden = true;
-  $("results").hidden = true;
+  showPlaceholder();
   document.querySelectorAll(".anchorbtn").forEach(b => b.classList.remove("anchored"));
 }
 $("anclear").onclick = clearAnchor;
@@ -333,7 +356,6 @@ async function runQuery(text) {
   // live elapsed counter, so a slow first query reads as "working" rather
   // than "stuck".
   const r = $("results");
-  r.hidden = false;
   r.classList.remove("flash");
   const t0 = performance.now();
   r.innerHTML = `<div class="rhead">
@@ -369,7 +391,6 @@ async function runQuery(text) {
 
 function renderResults(d, wall) {
   const r = $("results");
-  r.hidden = false;
   r.classList.remove("flash");
   const resp = d.response;
   const elapsed = resp.elapsed_ms ? (resp.elapsed_ms / 1000).toFixed(1) + "s" : wall.toFixed(1) + "s";
@@ -409,7 +430,7 @@ function renderResults(d, wall) {
   r.innerHTML = parts.join("");
   void r.offsetWidth;  // restart the flash animation
   r.classList.add("flash");
-  $("rclose").onclick = () => { r.hidden = true; };
+  $("rclose").onclick = showPlaceholder;
   // results stay open while browsing: clicking a title walks the LEFT
   // column to that node, so you can inspect a recommendation and come back
   // to the list without re-querying.
@@ -671,6 +692,7 @@ function pushHopFromHash(h) {
 }
 
 // boot: land on Apollo 13 (the demo the whole idea started from)
+showPlaceholder();
 pushHop({type: "node", id: 568}, "Apollo 13");
 </script>
 </body>

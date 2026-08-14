@@ -82,6 +82,7 @@ class Handler(BaseHTTPRequestHandler):
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")  # dev tool: always fresh
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -89,6 +90,7 @@ class Handler(BaseHTTPRequestHandler):
     def _html(self, body: bytes) -> None:
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")  # the UI ships in the HTML; never cache it
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
