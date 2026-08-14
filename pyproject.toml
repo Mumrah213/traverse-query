@@ -1,0 +1,23 @@
+[project]
+name = "traverse-query"
+version = "0.1.0"
+description = "Browse the movie graph to find an anchor, then query with it as context"
+requires-python = ">=3.12"
+dependencies = [
+    # The query engine: the router's matchers, branches and SearchResponse
+    # contract come from the query_to_rec repo, unchanged.
+    "query-to-rec @ git+https://github.com/Mumrah213/query-to-rec@main",
+]
+
+[project.scripts]
+traverse-query = "traverse_query.__main__:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
