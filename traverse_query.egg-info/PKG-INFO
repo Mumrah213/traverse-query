@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: traverse-query
+Version: 0.1.0
+Summary: Browse the movie graph to find an anchor, then query with it as context
+Requires-Python: >=3.12
+Requires-Dist: query-to-rec @ git+https://github.com/Mumrah213/query-to-rec@main
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"

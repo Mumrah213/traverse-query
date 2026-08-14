@@ -9,6 +9,16 @@ dependencies = [
     "query-to-rec @ git+https://github.com/Mumrah213/query-to-rec@main",
 ]
 
+# Flat layout, but the dev `data/` symlink looks like a top-level package to
+# auto-discovery. Pin discovery to the one real package so an editable
+# install works next to the symlink.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["traverse_query*"]
+
 [project.scripts]
 traverse-query = "traverse_query.__main__:main"
 

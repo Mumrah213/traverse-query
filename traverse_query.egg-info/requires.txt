@@ -1,0 +1,4 @@
+query-to-rec @ git+https://github.com/Mumrah213/query-to-rec@main
+
+[dev]
+pytest>=8

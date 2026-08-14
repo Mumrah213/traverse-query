@@ -8,7 +8,7 @@ SIBLING ?= ../simply-tv/query_to_rec
 .PHONY: install data-link serve test
 
 install: ## venv + deps (editable sibling query_to_rec + this package)
-	uv venv
+	@test -d $(VENV) || uv venv   # never replace an existing venv (uv 0.11 has no --allow-existing)
 	uv pip install -e $(SIBLING)
 	uv pip install -e . --no-deps
 	uv pip install sentence-transformers pytest

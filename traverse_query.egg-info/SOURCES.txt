@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+tests/test_anchor.py
+tests/test_browse.py
+traverse_query/__init__.py
+traverse_query/__main__.py
+traverse_query/anchor.py
+traverse_query/browse.py
+traverse_query/server.py
+traverse_query.egg-info/PKG-INFO
+traverse_query.egg-info/SOURCES.txt
+traverse_query.egg-info/dependency_links.txt
+traverse_query.egg-info/entry_points.txt
+traverse_query.egg-info/requires.txt
+traverse_query.egg-info/top_level.txt
