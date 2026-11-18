@@ -45,8 +45,8 @@ def _resolve_data_dir() -> Path:
     local = _REPO_ROOT / "data"
     if (local / "catalog.jsonl").exists():
         return local
-    # Dev convenience: the simply-tv monorepo the prototype grew up in.
-    sibling = _REPO_ROOT.parent / "simply-tv" / "query_to_rec" / "data"
+    # Dev convenience: the moviewreck monorepo the prototype grew up in.
+    sibling = _REPO_ROOT.parent / "moviewreck" / "query_to_rec" / "data"
     if (sibling / "catalog.jsonl").exists():
         return sibling
     return local

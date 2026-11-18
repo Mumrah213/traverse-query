@@ -3,7 +3,7 @@ PY = $(VENV)/bin/python
 
 # Dev layout: the sibling checkout is the live router (editable install),
 # its data dir is the shared substrate (symlinked).
-SIBLING ?= ../simply-tv/query_to_rec
+SIBLING ?= ../moviewreck/query_to_rec
 
 .PHONY: install data-link serve test
 
